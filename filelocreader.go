@@ -8,9 +8,18 @@ import (
 	"strconv"
 )
 
+type Location struct {
+	Line, StartCol, EndCol int
+}
+
+type FileLocation struct {
+	Filename string
+	Loc      Location
+}
+
 var re = regexp.MustCompile(`^(?P<filename>[^:].*):(?P<line>[0-9]*):(?P<startCol>[0-9]*)-(?P<endCol>[0-9]*)$`)
 
-func ParseLoc(s string) (*Location, error) {
+func ParseFileLocation(s string) (*FileLocation, error) {
 	matches := re.FindStringSubmatch(s)
 	filename := matches[re.SubexpIndex("filename")]
 
@@ -29,30 +38,31 @@ func ParseLoc(s string) (*Location, error) {
 		return nil, err
 	}
 
-	return &Location{
+	return &FileLocation{
 		Filename: filename,
-		Line:     line,
-		StartCol: startCol,
-		EndCol:   endCol,
+		Loc: Location{
+			Line:     line,
+			StartCol: startCol,
+			EndCol:   endCol,
+		},
 	}, nil
 }
 
-type Location struct {
-	Filename               string
-	Line, StartCol, EndCol int
-}
-
-func ExtractLoc(loc *Location) ([]byte, error) {
-	if loc == nil {
-		return nil, fmt.Errorf("loc is nil")
+func ExtractFileLocation(floc *FileLocation) ([]byte, error) {
+	if floc == nil {
+		return nil, fmt.Errorf("floc is nil")
 	}
-	b, err := os.ReadFile(loc.Filename)
+	b, err := os.ReadFile(floc.Filename)
 	if err != nil {
 		return nil, err
 	}
 
+	return ExtractLocation(b, floc)
+}
+
+func ExtractLocation(b []byte, floc *FileLocation) ([]byte, error) {
 	var fs token.FileSet
-	file := fs.AddFile(loc.Filename, 0, len(b))
+	file := fs.AddFile(floc.Filename, 0, len(b))
 
 	for i, r := range string(b) {
 		if r == '\n' {
@@ -60,6 +70,6 @@ func ExtractLoc(loc *Location) ([]byte, error) {
 		}
 	}
 
-	linePos := int(file.LineStart(loc.Line))
-	return b[linePos+loc.StartCol : linePos+loc.EndCol], nil
+	linePos := int(file.LineStart(floc.Loc.Line))
+	return b[linePos+floc.Loc.StartCol : linePos+floc.Loc.EndCol], nil
 }
