@@ -64,7 +64,7 @@ func ExtractLocation(b []byte, floc *FileLocation) ([]byte, error) {
 	var fs token.FileSet
 	file := fs.AddFile(floc.Filename, 0, len(b))
 
-	for i, r := range string(b) {
+	for i, r := range b {
 		if r == '\n' {
 			file.AddLine(i)
 		}
